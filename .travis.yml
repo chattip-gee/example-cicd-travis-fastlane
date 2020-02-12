@@ -1,46 +1,47 @@
-sudo: required
-
 language: android
 jdk: oraclejdk8
-dist: trusty
+sudo: false
 
-before_install:
-  - chmod +x gradlew
-  - touch $HOME/.android/repositories.cfg
-  - yes | sdkmanager "platforms;android-29"
-  - yes | sdkmanager "build-tools;29.0.3"
-
-before_cache:
-  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
-  - rm -rf $HOME/.gradle/caches/*/plugin-resolution/
-cache:
-  bundler: true
-  directories:
-    - /home/travis/.rvm/
-    - $HOME/.m2
-    - $HOME/.gradle/caches/
-    - $HOME/.gradle/wrapper/
-    - $HOME/.android/build-cache
+notifications:
+  email:
+    - chattip.gee@gmail.com
 env:
+  matrix:
+    - ANDROID_TARGET=android-21 ANDROID_ABI=armeabi-v7a
   global:
-    - TRAVIS_REPO=chattip-gee/example-cicd-travis-fastlane
-    - ADB_INSTALL_TIMEOUT=8
-
-before_script:
-  - echo no | android create avd --force -n test -t android-28 --abi armeabi-v7a
-  - emulator -avd test -no-skin -no-audio -no-window &
-  - android-wait-for-emulator
-  - adb shell input keyevent 82 &
-script:
-  - android list target
-  - ./gradlew connectedAndroidTest
+    - ADB_INSTALL_TIMEOUT=10
 android:
   components:
-    - tools
     - platform-tools
     - tools
+    - build-tools-29.0.2    #Build tool version
+    - android-29            #targate api version
+
+    # Additional components
+    - extra-google-google_play_services
+    - extra-google-m2repository
     - extra-android-m2repository
-  licenses:
-    - 'android-sdk-preview-license-52d11cd2'
-    - 'android-sdk-license-.+'
-    - 'google-gdk-license-.+'
+
+    #system images for emulator
+    - sys-img-armeabi-v7a-android-21
+before_cache:
+  - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
+
+cache:
+  directories:      #Cache all dirs under .gradle folder
+    - $HOME/.gradle/daemon      #Cache daemon logs
+    - $HOME/.gradle/native      #Cache library downloaded from the gradle dependency
+    - $HOME/.gradle/wrapper     #Cache the gradle
+before_script:
+  - chmod +x gradlew      #Grant permissions
+  - android list targets
+  - echo no | android create avd --force --name test --target $ANDROID_TARGET --abi $ANDROID_ABI    #Create AVD for given api
+  - emulator -avd test -no-skin -no-audio -no-window &    #Start emulator
+
+script:
+  - echo "Travis branch is $TRAVIS_BRANCH"    #Print out which branch it is.
+  - echo "Travis branch is in pull request $TRAVIS_PULL+REQUEST"    #Print out pull request number.
+  - android-wait-for-emulator             #Run wait for the emulator script.
+  - adb devices                           #Display list of devices
+  - adb shell input keyevent 82 &
+  - ./gradlew connectedAndroidTest -PdisablePreDex --stacktrace
